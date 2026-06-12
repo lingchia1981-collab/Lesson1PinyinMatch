@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第一課 歡迎你來我家</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Comic Sans MS', 'Chalkboard SE', 'Microsoft JhengHei', sans-serif;
+            background-color: #f6faff;
+            background-image: radial-gradient(#e0f0ff 15%, transparent 15%);
+            background-size: 24px 24px;
+            height: 100vh;
+            width: 100vw;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 3vh 2vw;
+        }
+        .header-score-bar {
+            width: 100%;
+            max-width: 95vw;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #ffffff;
+            padding: 1vh 2.5vw;
+            border-radius: 20px;
+            border: 3px solid #ffb7c5;
+            box-shadow: 0 4px 8px rgba(255,183,197,0.2);
+            height: 9vh;
+        }
+        .main-title {
+            color: #ff6b81;
+            font-size: min(3.2vh, 24px);
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .main-title::before {
+            content: "🐰";
+            font-size: min(3.5vh, 26px);
+        }
+        .score-board {
+            font-size: min(2.8vh, 20px);
+            font-weight: bold;
+            color: #2f3542;
+            background: #ffe3e8;
+            padding: 0.6vh 2vw;
+            border-radius: 30px;
+            border: 2px dashed #ff6b81;
+        }
+        .game-container {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 4vh;
+            width: 100%;
+            max-width: 95vw;
+            height: 68vh;
+        }
+        .row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            gap: 1.5vw;
+        }
+        .card {
+            background-color: #ffffff;
+            border: 3px solid #ced6e0;
+            border-radius: 18px;
+            flex: 1;
+            aspect-ratio: 1 / 1;
+            max-width: calc((95vw - 9vw) / 7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: min(3.3vh, 24px);
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            user-select: none;
+            box-shadow: 0 5px 0px #ced6e0;
+            color: #57606f;
+            position: relative;
+        }
+        .card:hover {
+            transform: translateY(-3px);
+            border-color: #ff6b81;
+            box-shadow: 0 8px 0px #ffb7c5;
+            color: #ff6b81;
+            background-color: #fff9fa;
+        }
+        .card.selected {
+            background-color: #ffe3e8;
+            border-color: #ff4757;
+            color: #ff4757;
+            transform: translateY(-3px);
+            box-shadow: 0 8px 0px #ff6b81;
+        }
+        .card.selected::after {
+            content: "🥕";
+            position: absolute;
+            top: -12px;
+            right: -10px;
+            font-size: min(2.5vh, 20px);
+        }
+        .card.wrong {
+            background-color: #ff4757;
+            border-color: #ba2f3a;
+            color: white;
+            animation: shake 0.3s ease;
+            box-shadow: 0 0px 0px transparent;
+        }
+        .card.hidden-match {
+            visibility: hidden;
+            pointer-events: none;
+            opacity: 0;
+            transition: visibility 0s 0.3s, opacity 0.3s linear;
+        }
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-8px); }
+            75% { transform: translateX(8px); }
+        }
+        .footer-zone {
+            height: 9vh;
+            display: flex;
+            align-items: center;
+        }
+        .btn-reset {
+            padding: 1.2vh 4vw;
+            font-size: min(2.5vh, 18px);
+            font-weight: bold;
+            background-color: #ff6b81;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow: 0 4px 0px #b33939;
+        }
+        .btn-reset:hover {
+            background-color: #ff4757;
+            transform: translateY(2px);
+            box-shadow: 0 2px 0px #b33939;
+        }
+        #canvas-confetti {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            pointer-events: none;
+            z-index: 999;
+        }
+    </style>
+</head>
+<body>
+
+    <canvas id="canvas-confetti"></canvas>
+
+    <div class="header-score-bar">
+        <div class="main-title">第一課 歡迎你來我家</div>
+        <div class="score-board">✨ <span id="score-val">0</span> / 7</div>
+    </div>
+
+    <div class="game-container">
+        <div class="row" id="char-row"></div>
+        <div class="row" id="pinyin-row"></div>
+    </div>
+
+    <div class="footer-zone">
+        <button class="btn-reset" onclick="initGame()">Reset</button>
+    </div>
+
+    <audio id="google-tts-player" style="display: none;"></audio>
+
+    <script>
+        const vocabData = [
+            { id: 1, pinyin: "qǐngwèn", char: "請問" },
+            { id: 2, pinyin: "jiē", char: "接" },
+            { id: 3, pinyin: "Huá", char: "華" },
+            { id: 4, pinyin: "xiānshēng", char: "先生" },
+            { id: 5, pinyin: "huānyíng", char: "歡迎" },
+            { id: 6, pinyin: "kāfēi", char: "咖啡" },
+            { id: 7, pinyin: "chá", char: "茶" }
+        ];
+
+        let selectedPinyinCard = null;
+        let selectedCharCard = null;
+        let score = 0;
+        let audioContextUnlocked = false;
+
+        function shuffle(array) {
+            return array.sort(() => Math.random() - 0.5);
+        }
+
+        // 解除瀏覽器音訊限制
+        function unlockAudio() {
+            if (!audioContextUnlocked) {
+                const player = document.getElementById('google-tts-player');
+                player.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAAD";
+                player.play().then(() => {
+                    audioContextUnlocked = true;
+                }).catch(e => console.log('Audio init pending click'));
+            }
+        }
+
+        function initGame() {
+            const pinyinRow = document.getElementById('pinyin-row');
+            const charRow = document.getElementById('char-row');
+            
+            pinyinRow.innerHTML = '';
+            charRow.innerHTML = '';
+            selectedPinyinCard = null;
+            selectedCharCard = null;
+            score = 0;
+            document.getElementById('score-val').innerText = score;
+
+            const charList = shuffle([...vocabData]);
+            const pinyinList = shuffle([...vocabData]);
+
+            charList.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerText = item.char;
+                card.dataset.id = item.id;
+                card.onclick = () => { unlockAudio(); selectChar(card); };
+                charRow.appendChild(card);
+            });
+
+            pinyinList.forEach(item => {
+                const card = document.createElement('div');
+                card.className = 'card';
+                card.innerText = item.pinyin;
+                card.dataset.id = item.id;
+                card.onclick = () => { unlockAudio(); selectPinyin(card); };
+                pinyinRow.appendChild(card);
+            });
+        }
+
+        function selectChar(card) {
+            if (card.classList.contains('hidden-match') || card.classList.contains('wrong')) return;
+            if (selectedCharCard) selectedCharCard.classList.remove('selected');
+            selectedCharCard = card;
+            card.classList.add('selected');
+            checkMatch();
+        }
+
+        function selectPinyin(card) {
+            if (card.classList.contains('hidden-match') || card.classList.contains('wrong')) return;
+            if (selectedPinyinCard) selectedPinyinCard.classList.remove('selected');
+            selectedPinyinCard = card;
+            card.classList.add('selected');
+            checkMatch();
+        }
+
+        // 系統內建語音發音（安全備用方案）
+        function speakFallback(text) {
+            if ('speechSynthesis' in window) {
+                window.speechSynthesis.cancel(); // 停止之前的聲音
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'zh-TW';
+                utterance.rate = 0.8;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // 播放 Google Translate 國語發音（主方案）
+        function playGoogleTTS(text) {
+            const player = document.getElementById('google-tts-player');
+            const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=zh-CN&client=tw-ob`;
+            
+            player.src = ttsUrl;
+            player.play().catch(err => {
+                console.log("Google TTS blocked, using fallback speech.");
+                speakFallback(text); // 如果被網域阻擋，立刻啟用內建標準語音
+            });
+        }
+
+        function checkMatch() {
+            if (selectedPinyinCard && selectedCharCard) {
+                const pinyinId = selectedPinyinCard.dataset.id;
+                const charId = selectedCharCard.dataset.id;
+
+                if (pinyinId === charId) {
+                    const targetVocab = vocabData.find(item => item.id == pinyinId);
+                    
+                    if (targetVocab) {
+                        playGoogleTTS(targetVocab.char);
+                    }
+
+                    selectedPinyinCard.className = 'card hidden-match';
+                    selectedCharCard.className = 'card hidden-match';
+                    selectedPinyinCard = null;
+                    selectedCharCard = null;
+                    score++;
+                    document.getElementById('score-val').innerText = score;
+
+                    if (score === vocabData.length) {
+                        setTimeout(startConfetti, 300);
+                    }
+                } else {
+                    const pCard = selectedPinyinCard;
+                    const cCard = selectedCharCard;
+                    
+                    pCard.className = 'card wrong';
+                    cCard.className = 'card wrong';
+
+                    selectedPinyinCard = null;
+                    selectedCharCard = null;
+
+                    setTimeout(() => {
+                        pCard.className = 'card';
+                        cCard.className = 'card';
+                    }, 400);
+                }
+            }
+        }
+
+        // 彩帶特效
+        const canvas = document.getElementById('canvas-confetti');
+        const ctx = canvas.getContext('2d');
+        let confetti = [];
+        let animationFrameId = null;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        function startConfetti() {
+            confetti = [];
+            const colors = ['#ff6b81', '#ff4757', '#7bed9f', '#eccc68', '#ffa502', '#70a1ff'];
+            for (let i = 0; i < 150; i++) {
+                confetti.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height - canvas.height,
+                    r: Math.random() * 6 + 4,
+                    d: Math.random() * canvas.height,
+                    color: colors[Math.floor(Math.random() * colors.length)],
+                    tilt: Math.random() * 10 - 5,
+                    tiltAngleIncremental: Math.random() * 0.07 + 0.02,
+                    tiltAngle: 0
+                });
+            }
+            if (animationFrameId) cancelAnimationFrame(animationFrameId);
+            animateConfetti();
+        }
+
+        function animateConfetti() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            let alive = false;
+
+            confetti.forEach((p, index) => {
+                p.tiltAngle += p.tiltAngleIncremental;
+                p.y += (Math.cos(p.d) + 3 + p.r / 2) / 2;
+                p.x += Math.sin(p.tiltAngle);
+                p.tilt = Math.sin(p.tiltAngle - index / 3) * 15;
+
+                if (p.y <= canvas.height) {
+                    alive = true;
+                }
+
+                ctx.beginPath();
+                ctx.lineWidth = p.r;
+                ctx.strokeStyle = p.color;
+                ctx.moveTo(p.x + p.tilt + p.r / 2, p.y);
+                ctx.lineTo(p.x + p.tilt, p.y + p.tilt + p.r / 2);
+                ctx.stroke();
+            });
+
+            if (alive) {
+                animationFrameId = requestAnimationFrame(animateConfetti);
+            } else {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+            }
+        }
+
+        window.onload = initGame;
+    </script>
+</body>
+</html>
