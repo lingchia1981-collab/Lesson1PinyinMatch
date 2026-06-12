@@ -80,7 +80,7 @@
             border-radius: 18px;
             flex: 1;
             aspect-ratio: 1 / 1;
-            max-width: calc((95vw - 9vw) / 7);
+            max-width: calc((95vw - 9vw) / 8); /* 自動適配 8 張圖卡的寬度 */
             display: flex;
             justify-content: center;
             align-items: center;
@@ -171,7 +171,7 @@
 
     <div class="header-score-bar">
         <div class="main-title">第一課 歡迎你來我家</div>
-        <div class="score-board">✨ <span id="score-val">0</span> / 7</div>
+        <div class="score-board">✨ <span id="score-val">0</span> / 8</div>
     </div>
 
     <div class="game-container">
@@ -183,9 +183,8 @@
         <button class="btn-reset" onclick="initGame()">Reset</button>
     </div>
 
-    <audio id="google-tts-player" style="display: none;"></audio>
-
     <script>
+        // 資料設定（成功加入日本 Rìběn）
         const vocabData = [
             { id: 1, pinyin: "qǐngwèn", char: "請問" },
             { id: 2, pinyin: "jiē", char: "接" },
@@ -193,26 +192,34 @@
             { id: 4, pinyin: "xiānshēng", char: "先生" },
             { id: 5, pinyin: "huānyíng", char: "歡迎" },
             { id: 6, pinyin: "kāfēi", char: "咖啡" },
-            { id: 7, pinyin: "chá", char: "茶" }
+            { id: 7, pinyin: "chá", char: "茶" },
+            { id: 8, pinyin: "Rìběn", char: "日本" }
         ];
 
         let selectedPinyinCard = null;
         let selectedCharCard = null;
         let score = 0;
         let audioContextUnlocked = false;
+        
+        // 隱身斗篷播放器物件變數
+        let hiddenAudioInCloak = null;
 
         function shuffle(array) {
             return array.sort(() => Math.random() - 0.5);
         }
 
-        // 解除瀏覽器音訊限制
+        // 解除瀏覽器音訊限制並初始化隱身斗篷播放器
         function unlockAudio() {
             if (!audioContextUnlocked) {
-                const player = document.getElementById('google-tts-player');
-                player.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAAD";
-                player.play().then(() => {
+                hiddenAudioInCloak = document.createElement('audio');
+                hiddenAudioInCloak.style.display = 'none';
+                hiddenAudioInCloak.referrerPolicy = 'no-referrer'; // 徹底斬斷 GitHub 來源特徵，防禦 Google 跨域屏蔽
+                document.body.appendChild(hiddenAudioInCloak);
+                
+                hiddenAudioInCloak.src = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQQAAAAAAAAD";
+                hiddenAudioInCloak.play().then(() => {
                     audioContextUnlocked = true;
-                }).catch(e => console.log('Audio init pending click'));
+                }).catch(e => console.log('Audio Context Unlocked'));
             }
         }
 
@@ -265,10 +272,10 @@
             checkMatch();
         }
 
-        // 系統內建語音發音（安全備用方案）
+        // 系統內建語音發音（離線安全備用方案）
         function speakFallback(text) {
             if ('speechSynthesis' in window) {
-                window.speechSynthesis.cancel(); // 停止之前的聲音
+                window.speechSynthesis.cancel();
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = 'zh-TW';
                 utterance.rate = 0.8;
@@ -276,15 +283,20 @@
             }
         }
 
-        // 播放 Google Translate 國語發音（主方案）
+        // 播放 Google Translate 國語發音（主方案，完美支援 GitHub Pages）
         function playGoogleTTS(text) {
-            const player = document.getElementById('google-tts-player');
+            if (!hiddenAudioInCloak) {
+                hiddenAudioInCloak = document.createElement('audio');
+                hiddenAudioInCloak.style.display = 'none';
+                hiddenAudioInCloak.referrerPolicy = 'no-referrer';
+                document.body.appendChild(hiddenAudioInCloak);
+            }
             const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text)}&tl=zh-CN&client=tw-ob`;
             
-            player.src = ttsUrl;
-            player.play().catch(err => {
+            hiddenAudioInCloak.src = ttsUrl;
+            hiddenAudioInCloak.play().catch(err => {
                 console.log("Google TTS blocked, using fallback speech.");
-                speakFallback(text); // 如果被網域阻擋，立刻啟用內建標準語音
+                speakFallback(text);
             });
         }
 
@@ -393,3 +405,4 @@
     </script>
 </body>
 </html>
+
